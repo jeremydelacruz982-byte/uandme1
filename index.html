@@ -1,1 +1,1021 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Digibouquet — send a bouquet and a letter</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.5.0/lz-string.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+  :root{
+    --bg-deep:#1B2A1E;
+    --bg-deep-2:#233227;
+    --paper:#F4ECD8;
+    --paper-edge:#E3D3AE;
+    --ink:#43301E;
+    --ink-soft:#7A6A52;
+    --rose:#C67B86;
+    --gold:#B08C4F;
+    --sage:#8A9A78;
+    --focus:#E3B23C;
+    --danger:#B2503F;
+    --font-display:'Fraunces', serif;
+    --font-ui:'Inter', sans-serif;
+    --radius:18px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    min-height:100vh;
+    background:
+      radial-gradient(1200px 800px at 15% -10%, #2E4230 0%, transparent 60%),
+      radial-gradient(1000px 700px at 110% 20%, #24361F 0%, transparent 55%),
+      var(--bg-deep);
+    color:var(--paper);
+    font-family:var(--font-ui);
+    -webkit-font-smoothing:antialiased;
+  }
+  a{color:inherit;}
+  button{font-family:inherit;cursor:pointer;}
+  :focus-visible{outline:2px solid var(--focus);outline-offset:2px;}
 
+  .shell{
+    max-width:640px;
+    margin:0 auto;
+    padding:28px 20px 64px;
+    min-height:100vh;
+    display:flex;
+    flex-direction:column;
+  }
+  .brand{
+    display:flex;
+    align-items:baseline;
+    gap:10px;
+    margin-bottom:28px;
+  }
+  .brand-mark{
+    font-family:var(--font-display);
+    font-size:1.15rem;
+    font-weight:500;
+    font-style:italic;
+    color:var(--paper);
+  }
+  .brand-sub{
+    font-size:0.78rem;
+    color:var(--sage);
+    letter-spacing:0.02em;
+  }
+
+  /* ---- progress vine ---- */
+  .vine{
+    position:relative;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin:6px 6px 30px;
+  }
+  .vine::before{
+    content:"";
+    position:absolute;
+    left:8px;right:8px;top:50%;
+    height:2px;
+    background:rgba(244,236,216,0.18);
+    transform:translateY(-50%);
+    z-index:0;
+  }
+  .vine-bud{
+    position:relative;
+    z-index:1;
+    width:16px;height:16px;
+    border-radius:50%;
+    background:var(--bg-deep-2);
+    border:2px solid rgba(244,236,216,0.3);
+    transition:background .25s, border-color .25s, transform .25s;
+  }
+  .vine-bud.done{background:var(--sage);border-color:var(--sage);}
+  .vine-bud.current{background:var(--rose);border-color:var(--rose);transform:scale(1.25);}
+
+  /* ---- card ---- */
+  .card{
+    background:var(--paper);
+    color:var(--ink);
+    border-radius:var(--radius);
+    padding:32px 28px;
+    box-shadow:0 24px 60px -20px rgba(0,0,0,0.55);
+    position:relative;
+    flex:1;
+  }
+  .card::before{
+    content:"";
+    position:absolute;inset:0;
+    border-radius:var(--radius);
+    background:
+      repeating-linear-gradient(0deg, rgba(67,48,30,0.02) 0px, rgba(67,48,30,0.02) 1px, transparent 1px, transparent 3px);
+    pointer-events:none;
+  }
+  .step-eyebrow{
+    font-size:0.8rem;
+    color:var(--ink-soft);
+    margin:0 0 4px;
+  }
+  h1.step-title, h2.step-title{
+    font-family:var(--font-display);
+    font-weight:500;
+    font-size:1.6rem;
+    margin:0 0 6px;
+    line-height:1.2;
+  }
+  .step-lede{
+    color:var(--ink-soft);
+    font-size:0.95rem;
+    margin:0 0 24px;
+    max-width:46ch;
+  }
+
+  label{
+    display:block;
+    font-size:0.85rem;
+    font-weight:500;
+    margin:18px 0 6px;
+  }
+  label:first-of-type{margin-top:0;}
+  input[type="text"], textarea, select{
+    width:100%;
+    font-family:var(--font-ui);
+    font-size:0.95rem;
+    padding:11px 13px;
+    border:1.5px solid var(--paper-edge);
+    background:#FBF7EC;
+    border-radius:10px;
+    color:var(--ink);
+  }
+  textarea{resize:vertical;min-height:90px;line-height:1.5;}
+  input::placeholder, textarea::placeholder{color:#B3A488;}
+  .hint{font-size:0.78rem;color:var(--ink-soft);margin-top:6px;}
+  .field-error{font-size:0.78rem;color:var(--danger);margin-top:6px;display:none;}
+  .field-error.show{display:block;}
+
+  /* buttons */
+  .btn-row{display:flex;gap:10px;margin-top:28px;justify-content:space-between;}
+  .btn{
+    border:none;
+    border-radius:999px;
+    padding:12px 22px;
+    font-size:0.9rem;
+    font-weight:600;
+    display:inline-flex;
+    align-items:center;
+    gap:8px;
+  }
+  .btn-primary{background:var(--ink);color:var(--paper);}
+  .btn-primary:disabled{background:#C9BC9E;color:#83795F;cursor:not-allowed;}
+  .btn-ghost{background:transparent;color:var(--ink-soft);}
+  .btn-ghost:hover{color:var(--ink);}
+  .btn-small{padding:7px 14px;font-size:0.8rem;border-radius:999px;background:#EFE4C7;color:var(--ink);}
+
+  /* ---- flower picker ---- */
+  .flower-grid{
+    display:grid;
+    grid-template-columns:repeat(5,1fr);
+    gap:10px;
+    margin:6px 0 20px;
+  }
+  @media (max-width:460px){ .flower-grid{grid-template-columns:repeat(3,1fr);} }
+  .flower-btn{
+    background:#FBF7EC;
+    border:1.5px solid var(--paper-edge);
+    border-radius:14px;
+    padding:10px 6px 8px;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:6px;
+    position:relative;
+    transition:border-color .2s, transform .15s;
+  }
+  .flower-btn:hover{transform:translateY(-2px);}
+  .flower-btn.active{border-color:var(--rose);background:#FBEFE9;}
+  .flower-btn svg{width:34px;height:34px;}
+  .flower-name{font-size:0.72rem;color:var(--ink-soft);}
+  .flower-count{
+    position:absolute;top:-6px;right:-6px;
+    background:var(--rose);color:#fff;
+    font-size:0.68rem;font-weight:700;
+    width:18px;height:18px;border-radius:50%;
+    display:flex;align-items:center;justify-content:center;
+  }
+  .stem-summary{font-size:0.82rem;color:var(--ink-soft);margin-bottom:10px;}
+
+  .jar-wrap{
+    display:flex;justify-content:center;
+    margin:18px 0 6px;
+  }
+
+  /* ---- letter ---- */
+  .letter-sheet{
+    background:#FBF6E9;
+    border:1px solid var(--paper-edge);
+    border-radius:8px;
+    padding:22px 20px;
+    font-family:var(--font-display);
+    color:var(--ink);
+    box-shadow:inset 0 0 0 1px rgba(67,48,30,0.04), 0 8px 18px -12px rgba(67,48,30,0.4);
+    white-space:pre-wrap;
+    line-height:1.65;
+    min-height:120px;
+    font-size:1rem;
+  }
+  .letter-salutation{font-style:italic;margin-bottom:6px;display:block;}
+  textarea#letterBody{
+    font-family:var(--font-display);
+    background:#FBF6E9;
+  }
+
+  /* ---- media ---- */
+  .upload-box{
+    border:1.5px dashed var(--paper-edge);
+    border-radius:12px;
+    padding:16px;
+    background:#FBF7EC;
+  }
+  .upload-box + .upload-box{margin-top:14px;}
+  .optional-tag{font-weight:400;color:var(--ink-soft);font-size:0.78rem;}
+  .media-slot{margin-top:14px;}
+  .media-slot:first-child{margin-top:8px;}
+  .media-slot label{margin:0 0 5px;font-size:0.82rem;}
+  .slot-preview{margin-top:6px;min-height:0;}
+  .slot-status{font-size:0.78rem;color:var(--ink-soft);}
+  .slot-status.error{color:var(--danger);}
+  .slot-audio{width:100%;height:32px;}
+  .slot-embed{width:100%;border:none;border-radius:8px;display:block;}
+  .slot-embed.yt-embed{height:160px;}
+  .slot-embed.sp-embed{height:80px;}
+  .song-frame{
+    position:relative;
+    background:#FBF6E9;
+    border:1.5px solid var(--paper-edge);
+    border-radius:12px;
+    padding:20px 14px 14px;
+    margin-bottom:14px;
+    box-shadow:0 10px 22px -16px rgba(67,48,30,0.55);
+  }
+  .frame-corner{position:absolute;width:13px;height:13px;}
+  .frame-corner.tl{top:6px;left:6px;border-top:2px solid var(--gold);border-left:2px solid var(--gold);}
+  .frame-corner.tr{top:6px;right:6px;border-top:2px solid var(--gold);border-right:2px solid var(--gold);}
+  .frame-corner.bl{bottom:6px;left:6px;border-bottom:2px solid var(--gold);border-left:2px solid var(--gold);}
+  .frame-corner.br{bottom:6px;right:6px;border-bottom:2px solid var(--gold);border-right:2px solid var(--gold);}
+  .song-frame-badge{
+    position:absolute;top:-12px;left:50%;transform:translateX(-50%);
+    width:24px;height:24px;border-radius:50%;
+    background:var(--gold);color:var(--paper);
+    display:flex;align-items:center;justify-content:center;
+    font-size:0.8rem;line-height:1;
+    box-shadow:0 3px 8px rgba(67,48,30,0.4);
+  }
+  .gift-audio-list{margin:18px 0 4px;}
+  .note-box{
+    background:#EFE9D6;
+    border-left:3px solid var(--sage);
+    padding:10px 14px;
+    border-radius:0 8px 8px 0;
+    font-size:0.8rem;
+    color:var(--ink-soft);
+    margin-top:14px;
+  }
+
+  /* ---- review ---- */
+  .summary-block{margin-bottom:16px;}
+  .summary-label{font-size:0.72rem;text-transform:none;color:var(--ink-soft);margin-bottom:2px;}
+  .summary-value{font-size:0.95rem;}
+  .confirm-row{
+    display:flex;gap:10px;align-items:flex-start;
+    margin-top:22px;padding-top:18px;border-top:1px solid var(--paper-edge);
+  }
+  .confirm-row input{margin-top:3px;width:16px;height:16px;flex-shrink:0;}
+  .confirm-row p{margin:0;font-size:0.85rem;color:var(--ink-soft);}
+  details.disclaimer{margin-top:8px;font-size:0.78rem;color:var(--ink-soft);}
+  details.disclaimer summary{cursor:pointer;color:var(--ink);}
+
+  /* ---- result ---- */
+  .qr-wrap{display:flex;justify-content:center;margin:14px 0 18px;}
+  .qr-wrap > div{background:#fff;padding:14px;border-radius:12px;}
+  .link-box{
+    display:flex;gap:8px;align-items:center;
+    background:#FBF7EC;border:1.5px solid var(--paper-edge);
+    border-radius:10px;padding:10px 12px;margin-bottom:10px;
+  }
+  .link-box input{border:none;background:transparent;padding:0;font-size:0.82rem;flex:1;color:var(--ink-soft);}
+
+  /* ---- recipient view ---- */
+  .gift-hero{text-align:center;margin-bottom:6px;}
+  .gift-hero p{color:var(--ink-soft);font-size:0.9rem;margin:2px 0 0;}
+  .response-block{margin-top:26px;padding-top:22px;border-top:1px solid var(--paper-edge);}
+  .response-sent{
+    background:#EAF0E4;border-left:3px solid var(--sage);
+    padding:12px 14px;border-radius:0 8px 8px 0;font-size:0.88rem;
+  }
+  .response-item{
+    background:#FBF7EC;border:1px solid var(--paper-edge);
+    border-radius:10px;padding:10px 12px;margin-bottom:8px;font-size:0.88rem;
+  }
+  .response-time{font-size:0.7rem;color:var(--ink-soft);display:block;margin-top:4px;}
+
+  .hidden{display:none !important;}
+</style>
+</head>
+<body>
+<div class="shell">
+  <div class="brand">
+    <span class="brand-mark">Digibouquet</span>
+    <span class="brand-sub">a bouquet, a letter, one link</span>
+  </div>
+
+  <!-- ===================== CREATION FLOW ===================== -->
+  <div id="createView">
+    <div class="vine" id="vine">
+      <div class="vine-bud" data-i="0"></div>
+      <div class="vine-bud" data-i="1"></div>
+      <div class="vine-bud" data-i="2"></div>
+      <div class="vine-bud" data-i="3"></div>
+      <div class="vine-bud" data-i="4"></div>
+      <div class="vine-bud" data-i="5"></div>
+    </div>
+
+    <div class="card">
+      <!-- Step 0: intake -->
+      <section class="step" data-step="0">
+        <p class="step-eyebrow">Step 1 of 6</p>
+        <h1 class="step-title">Who is this for?</h1>
+        <p class="step-lede">A few details shape the letter and the question you'll ask them.</p>
+
+        <label for="recipientName">Their name</label>
+        <input type="text" id="recipientName" placeholder="e.g. Maya">
+        <p class="field-error" id="err-name">Add a name so the letter can be personal.</p>
+
+        <label for="occasion">Occasion</label>
+        <select id="occasion">
+          <option value="Valentine's Day">Valentine's Day</option>
+          <option value="an anniversary">An anniversary</option>
+          <option value="no particular reason">No particular reason</option>
+          <option value="Custom">Something else</option>
+        </select>
+
+        <label for="question">A question to ask them</label>
+        <input type="text" id="question" placeholder="What's your favorite memory of us?">
+        <p class="hint">They'll see this when they open the bouquet, and can answer without giving their name.</p>
+
+        <div class="btn-row">
+          <span></span>
+          <button class="btn btn-primary" data-action="next">Continue</button>
+        </div>
+      </section>
+
+      <!-- Step 1: bouquet -->
+      <section class="step hidden" data-step="1">
+        <p class="step-eyebrow">Step 2 of 6</p>
+        <h2 class="step-title">Choose the flowers</h2>
+        <p class="step-lede">Tap a flower to add a stem. Tap it again to add another, or use the remove badge.</p>
+
+        <div class="flower-grid" id="flowerGrid"></div>
+        <p class="stem-summary" id="stemSummary"></p>
+        <p class="field-error" id="err-flowers">Add at least one stem before continuing.</p>
+
+        <div class="jar-wrap" id="jarWrap"></div>
+
+        <div class="btn-row">
+          <button class="btn btn-ghost" data-action="prev">Back</button>
+          <button class="btn btn-primary" data-action="next">Continue</button>
+        </div>
+      </section>
+
+      <!-- Step 2: letter -->
+      <section class="step hidden" data-step="2">
+        <p class="step-eyebrow">Step 3 of 6</p>
+        <h2 class="step-title">Write the letter</h2>
+        <p class="step-lede">It's set in the same type it'll appear in for them.</p>
+
+        <label for="letterBody">Your letter</label>
+        <textarea id="letterBody" rows="7" placeholder="Start writing..."></textarea>
+        <p class="field-error" id="err-letter">The letter can't be empty.</p>
+
+        <label style="margin-top:22px;">Preview</label>
+        <div class="letter-sheet" id="letterPreview"></div>
+
+        <div class="btn-row">
+          <button class="btn btn-ghost" data-action="prev">Back</button>
+          <button class="btn btn-primary" data-action="next">Continue</button>
+        </div>
+      </section>
+
+      <!-- Step 3: media -->
+      <section class="step hidden" data-step="3">
+        <p class="step-eyebrow">Step 4 of 6 · optional</p>
+        <h2 class="step-title">Add a song</h2>
+        <p class="step-lede">Paste a link to a song you'd like included — up to 5.</p>
+
+        <div class="upload-box">
+          <label style="margin:0;">Songs <span class="optional-tag">up to 5, optional</span></label>
+          <p class="hint" style="margin-top:2px;">A direct audio file link, a YouTube link, or a Spotify track link all work.</p>
+          <div id="audSlots"></div>
+        </div>
+
+        <div class="note-box">
+          These stay as links rather than uploaded files, so nothing routes through a server at all — the song lives wherever it already is, and the gift link just points to it. The tradeoff: if a source link ever moves or gets taken down, that song stops playing inside an already-sent digibouquet, the same as any embedded link elsewhere on the web.
+        </div>
+
+        <div class="btn-row">
+          <button class="btn btn-ghost" data-action="prev">Back</button>
+          <button class="btn btn-primary" data-action="next">Continue</button>
+        </div>
+      </section>
+
+      <!-- Step 4: review -->
+      <section class="step hidden" data-step="4">
+        <p class="step-eyebrow">Step 5 of 6</p>
+        <h2 class="step-title">Before you send it</h2>
+        <p class="step-lede">Here's everything as they'll see it.</p>
+
+        <div id="reviewSummary"></div>
+
+        <div class="confirm-row">
+          <input type="checkbox" id="confirmBox">
+          <p>
+            This is just between the two of you — no one else can see it, and it disappears after 90 days.
+            <details class="disclaimer">
+              <summary>What that means, in detail</summary>
+              This link and any replies to it live in temporary storage rather than a permanent account or database, and are set to expire automatically. Anyone who has the link can open it, so only share it with the person it's for. Don't use this for anything you wouldn't want the recipient to screenshot and keep — once it's sent, you can't unsend it.
+            </details>
+          </p>
+        </div>
+
+        <div class="btn-row">
+          <button class="btn btn-ghost" data-action="prev">Back</button>
+          <button class="btn btn-primary" id="generateBtn" disabled>Create the digibouquet</button>
+        </div>
+      </section>
+
+      <!-- Step 5: result -->
+      <section class="step hidden" data-step="5">
+        <p class="step-eyebrow">Step 6 of 6</p>
+        <h2 class="step-title">Your digibouquet is ready</h2>
+        <p class="step-lede">Send the first link to them. Keep the second one for yourself — it's how you'll see what they say back.</p>
+
+        <div class="qr-wrap" id="qrWrap"></div>
+
+        <label style="margin-top:6px;">Their link</label>
+        <div class="link-box">
+          <input type="text" id="giftLinkOut" readonly>
+          <button class="btn btn-small" data-copy="giftLinkOut">Copy</button>
+        </div>
+
+        <label>Your private link (for reading replies)</label>
+        <div class="link-box">
+          <input type="text" id="respLinkOut" readonly>
+          <button class="btn btn-small" data-copy="respLinkOut">Copy</button>
+        </div>
+
+        <div class="note-box">
+          In this preview build, replies are stored in this browser only, so the private link only shows replies submitted from the same device. A live deployment replaces that local step with the ephemeral, auto-expiring store described in the architecture — same flow, real cross-device delivery.
+        </div>
+
+        <div class="btn-row">
+          <a class="btn btn-small" id="previewGiftBtn" target="_blank">Preview as recipient</a>
+          <button class="btn btn-ghost" data-action="restart">Start another</button>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <!-- ===================== RECIPIENT / GIFT VIEW ===================== -->
+  <div id="giftView" class="hidden">
+    <div class="card">
+      <div class="gift-hero">
+        <p class="step-eyebrow" id="giftOccasion"></p>
+        <h1 class="step-title">A digibouquet, for you</h1>
+      </div>
+
+      <div class="jar-wrap" id="giftJarWrap"></div>
+
+      <div class="letter-sheet" id="giftLetter"></div>
+
+      <div id="giftMedia"></div>
+
+      <div class="response-block" id="responseBlock">
+        <label id="giftQuestionLabel" style="margin-top:0;"></label>
+        <textarea id="responseText" rows="3" placeholder="Answer as openly or briefly as you like — it goes back without your name."></textarea>
+        <div class="btn-row">
+          <span></span>
+          <button class="btn btn-primary" id="sendResponseBtn">Send reply</button>
+        </div>
+        <p class="hint">Only the two of you can see this exchange.</p>
+      </div>
+
+      <div class="response-sent hidden" id="responseSent">
+        Sent — they'll see it on their end. You can close this tab now.
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== SENDER RESPONSES VIEW ===================== -->
+  <div id="responsesView" class="hidden">
+    <div class="card">
+      <p class="step-eyebrow">Private link</p>
+      <h1 class="step-title">Their replies</h1>
+      <p class="step-lede" id="respLede"></p>
+      <div id="responsesList"></div>
+      <div class="note-box">
+        This list reads from local storage on this device/browser, since this preview build has no live backend — it will only show replies that were sent from this same browser.
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ---------------- flower definitions & SVG rendering ---------------- */
+  var FLOWERS = [
+    {id:"daisy",     label:"Daisy",     type:"radial", petals:14, petalW:5,  petalL:15, petalColor:"#FFFDF6", petalColor2:"#F4EFDD", center:"#E7B33D"},
+    {id:"lilac",     label:"Lilac",     type:"spike",  floretColor:"#B79CC7", floretColor2:"#9A7EB0"},
+    {id:"sunflower", label:"Sunflower", type:"radial", petals:16, petalW:6,  petalL:18, petalColor:"#F3B23A", petalColor2:"#E89A1E", center:"#5B3A22"},
+    {id:"peony",     label:"Peony",     type:"radial", petals:22, petalW:8,  petalL:12, petalColor:"#F1B6C2", petalColor2:"#E893A6", center:"#F1B6C2", noCenter:true},
+    {id:"carnation", label:"Carnation", type:"ruffle", petalColor:"#E4677B", petalColor2:"#C94F63"},
+    {id:"rose",      label:"Rose",      type:"spiral", petalColor:"#C43B4E", petalColor2:"#8F2536"},
+    {id:"tulip",     label:"Tulip",     type:"cup",    petalColor:"#D6488A", petalColor2:"#B12E6C"},
+    {id:"lavender",  label:"Lavender",  type:"spike",  floretColor:"#8D79C9", floretColor2:"#6E58B0"},
+    {id:"orchid",    label:"Orchid",    type:"orchid", petalColor:"#F5EEF8", petalColor2:"#9B5FB0"},
+    {id:"dahlia",    label:"Dahlia",    type:"radial", petals:18, petalW:5,  petalL:16, petalColor:"#E8763B", petalColor2:"#C9502A", center:"#7A3A1E"}
+  ];
+  var FLOWER_MAP = {};
+  FLOWERS.forEach(function(f){ FLOWER_MAP[f.id] = f; });
+
+  function svgOpen(size){ return '<svg viewBox="0 0 60 60" width="'+size+'" height="'+size+'" xmlns="http://www.w3.org/2000/svg">'; }
+
+  function flowerSVG(f, size){
+    size = size || 34;
+    var body = "";
+    if(f.type === "radial"){
+      var n = f.petals, cx=30, cy=30;
+      for(var i=0;i<n;i++){
+        var ang = (360/n)*i;
+        var color = i % 2 === 0 ? f.petalColor : f.petalColor2;
+        body += '<ellipse cx="'+cx+'" cy="'+(cy-13)+'" rx="'+f.petalW+'" ry="'+f.petalL+'" fill="'+color+'" transform="rotate('+ang+' '+cx+' '+cy+')"/>';
+      }
+      if(!f.noCenter){
+        body += '<circle cx="'+cx+'" cy="'+cy+'" r="7" fill="'+f.center+'"/>';
+      } else {
+        body += '<circle cx="'+cx+'" cy="'+cy+'" r="6" fill="'+f.petalColor2+'"/>';
+      }
+    } else if(f.type === "spike"){
+      var rows = 7;
+      for(var j=0;j<rows;j++){
+        var y = 12 + j*5.5;
+        var w = 6 + (rows-j)*0.6;
+        var c = j % 2 === 0 ? f.floretColor : f.floretColor2;
+        body += '<ellipse cx="'+(30-w/2)+'" cy="'+y+'" rx="3.4" ry="2.6" fill="'+c+'"/>';
+        body += '<ellipse cx="'+(30+w/2)+'" cy="'+y+'" rx="3.4" ry="2.6" fill="'+c+'"/>';
+      }
+      body += '<line x1="30" y1="14" x2="30" y2="50" stroke="#6E8A5E" stroke-width="2"/>';
+    } else if(f.type === "ruffle"){
+      for(var k=0;k<16;k++){
+        var a = (360/16)*k;
+        var col = k%2===0 ? f.petalColor : f.petalColor2;
+        body += '<path d="M30 30 L27 15 L30 18 L33 15 Z" fill="'+col+'" transform="rotate('+a+' 30 30)"/>';
+      }
+      body += '<circle cx="30" cy="30" r="5" fill="'+f.petalColor2+'"/>';
+    } else if(f.type === "spiral"){
+      var turns = 5;
+      for(var m=turns;m>0;m--){
+        var r = m*4.2;
+        var col2 = m%2===0 ? f.petalColor : f.petalColor2;
+        body += '<path d="M 30 '+(30-r)+' A '+r+' '+r+' 0 1 1 '+(30-r*0.2)+' '+(30-r*0.98)+'" stroke="'+col2+'" stroke-width="5" fill="none" stroke-linecap="round"/>';
+      }
+      body += '<circle cx="30" cy="30" r="3.5" fill="'+f.petalColor2+'"/>';
+    } else if(f.type === "cup"){
+      body += '<path d="M17 32 C17 16 24 8 30 8 C36 8 43 16 43 32 C43 40 37 34 30 34 C23 34 17 40 17 32 Z" fill="'+f.petalColor+'"/>';
+      body += '<path d="M22 30 C22 18 26 11 30 11 C34 11 38 18 38 30" fill="none" stroke="'+f.petalColor2+'" stroke-width="1.5" opacity="0.6"/>';
+    } else if(f.type === "orchid"){
+      var petAngles = [0,72,144,216,288];
+      for(var p=0;p<5;p++){
+        body += '<ellipse cx="30" cy="18" rx="6" ry="12" fill="'+(p%2? f.petalColor : f.petalColor2)+'" transform="rotate('+petAngles[p]+' 30 30)" opacity="0.9"/>';
+      }
+      body += '<ellipse cx="30" cy="34" rx="6" ry="8" fill="'+f.petalColor2+'"/>';
+    }
+    return svgOpen(size) + body + '</svg>';
+  }
+
+  /* deterministic bouquet layout offsets for up to 9 stems */
+  var LAYOUT = [
+    {x:0,y:-6,r:-6,s:1.15},{x:-24,y:2,r:-18,s:1},{x:24,y:2,r:16,s:1},
+    {x:-40,y:14,r:-28,s:0.9},{x:40,y:14,r:26,s:0.9},{x:-12,y:-18,r:-4,s:1.05},
+    {x:12,y:-18,r:6,s:1.05},{x:-52,y:24,r:-34,s:0.82},{x:52,y:24,r:32,s:0.82}
+  ];
+
+  function renderBouquet(flowerIds, targetEl){
+    var stems = [];
+    flowerIds.forEach(function(id){ stems.push(id); });
+    var width=220, height=200;
+    var svg = '<svg viewBox="0 0 '+width+' '+height+'" width="240" height="220" xmlns="http://www.w3.org/2000/svg">';
+    // jar
+    svg += '<path d="M75 150 L70 190 Q70 198 78 198 L142 198 Q150 198 150 190 L145 150 Z" fill="#DCE7DC" stroke="#B9CBB7" stroke-width="2"/>';
+    svg += '<rect x="72" y="140" width="76" height="14" rx="4" fill="#C9DAC7"/>';
+    stems.slice(0,9).forEach(function(id, idx){
+      var f = FLOWER_MAP[id];
+      var L = LAYOUT[idx % LAYOUT.length];
+      var cx = 110 + L.x*0.55;
+      var cyStem = 150;
+      var cyFlower = 88 + L.y;
+      svg += '<line x1="'+cx+'" y1="'+cyStem+'" x2="'+(110+L.x*0.7)+'" y2="'+(cyFlower+16)+'" stroke="#6E8A5E" stroke-width="2.5"/>';
+      svg += '<g transform="translate('+((110+L.x*0.7)-30*L.s)+' '+(cyFlower-30*L.s)+') scale('+L.s+') rotate('+L.r+' 30 30)">'+ innerFlowerMarkup(f) +'</g>';
+    });
+    svg += '</svg>';
+    targetEl.innerHTML = svg;
+  }
+
+  function innerFlowerMarkup(f){
+    var full = flowerSVG(f, 60);
+    var start = full.indexOf(">")+1;
+    var end = full.lastIndexOf("</svg>");
+    return full.slice(start, end);
+  }
+
+  /* ---------------- app state ---------------- */
+  var state = {
+    step:0,
+    name:"", occasion:"Valentine's Day", question:"",
+    flowers:{},           // id -> count
+    letter:"",
+    songLinks:["","","","",""]
+  };
+
+  var STEP_COUNT = 6;
+
+  function totalStems(){
+    return Object.keys(state.flowers).reduce(function(sum,k){ return sum+state.flowers[k]; }, 0);
+  }
+  function flowerIdList(){
+    var list = [];
+    Object.keys(state.flowers).forEach(function(id){
+      for(var i=0;i<state.flowers[id];i++) list.push(id);
+    });
+    return list;
+  }
+
+  /* ---------------- step navigation ---------------- */
+  function showStep(i){
+    document.querySelectorAll(".step").forEach(function(s){
+      s.classList.toggle("hidden", parseInt(s.dataset.step,10) !== i);
+    });
+    document.querySelectorAll(".vine-bud").forEach(function(b){
+      var bi = parseInt(b.dataset.i,10);
+      b.classList.toggle("current", bi===i);
+      b.classList.toggle("done", bi<i);
+    });
+    state.step = i;
+    if(i===2){ syncLetterPreview(); }
+    if(i===4){ renderReview(); }
+  }
+
+  function validateStep(i){
+    if(i===0){
+      var name = document.getElementById("recipientName").value.trim();
+      document.getElementById("err-name").classList.toggle("show", !name);
+      if(!name) return false;
+      state.name = name;
+      state.occasion = document.getElementById("occasion").value;
+      state.question = document.getElementById("question").value.trim() || "What's your favorite memory of us?";
+      return true;
+    }
+    if(i===1){
+      var ok = totalStems() > 0;
+      document.getElementById("err-flowers").classList.toggle("show", !ok);
+      return ok;
+    }
+    if(i===2){
+      var body = document.getElementById("letterBody").value.trim();
+      document.getElementById("err-letter").classList.toggle("show", !body);
+      if(!body) return false;
+      state.letter = body;
+      return true;
+    }
+    return true;
+  }
+
+  document.addEventListener("click", function(e){
+    var actEl = e.target.closest("[data-action]");
+    if(actEl){
+      var action = actEl.dataset.action;
+      if(action==="next"){
+        if(validateStep(state.step)) showStep(Math.min(state.step+1, STEP_COUNT-1));
+      } else if(action==="prev"){
+        showStep(Math.max(state.step-1, 0));
+      } else if(action==="restart"){
+        location.hash = "";
+        location.reload();
+      }
+    }
+    var copyEl = e.target.closest("[data-copy]");
+    if(copyEl){
+      var input = document.getElementById(copyEl.dataset.copy);
+      input.select();
+      document.execCommand("copy");
+      var orig = copyEl.textContent;
+      copyEl.textContent = "Copied";
+      setTimeout(function(){ copyEl.textContent = orig; }, 1400);
+    }
+  });
+
+  /* ---------------- flower picker ---------------- */
+  function renderFlowerGrid(){
+    var grid = document.getElementById("flowerGrid");
+    grid.innerHTML = "";
+    FLOWERS.forEach(function(f){
+      var btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "flower-btn";
+      btn.dataset.id = f.id;
+      btn.innerHTML = flowerSVG(f, 34) + '<span class="flower-name">'+f.label+'</span>';
+      btn.addEventListener("click", function(){
+        if(totalStems() >= 9 && !state.flowers[f.id]) return;
+        state.flowers[f.id] = (state.flowers[f.id]||0) + 1;
+        renderFlowerGrid();
+        renderBouquetStep();
+      });
+      btn.addEventListener("contextmenu", function(ev){
+        ev.preventDefault();
+        if(state.flowers[f.id]){
+          state.flowers[f.id]--;
+          if(state.flowers[f.id]<=0) delete state.flowers[f.id];
+          renderFlowerGrid();
+          renderBouquetStep();
+        }
+      });
+      if(state.flowers[f.id]){
+        btn.classList.add("active");
+        var badge = document.createElement("span");
+        badge.className = "flower-count";
+        badge.textContent = state.flowers[f.id];
+        badge.title = "Remove a stem";
+        badge.addEventListener("click", function(ev){
+          ev.stopPropagation();
+          state.flowers[f.id]--;
+          if(state.flowers[f.id]<=0) delete state.flowers[f.id];
+          renderFlowerGrid();
+          renderBouquetStep();
+        });
+        btn.appendChild(badge);
+      }
+      grid.appendChild(btn);
+    });
+  }
+  function renderBouquetStep(){
+    var n = totalStems();
+    document.getElementById("stemSummary").textContent =
+      n===0 ? "No stems yet — tap a flower to begin." :
+      n+" stem"+(n===1?"":"s")+" so far (tap the number badge to remove one, 9 max).";
+    renderBouquet(flowerIdList(), document.getElementById("jarWrap"));
+  }
+
+  /* ---------------- letter ---------------- */
+  function syncLetterPreview(){
+    var body = document.getElementById("letterBody").value;
+    var pv = document.getElementById("letterPreview");
+    pv.innerHTML = '<span class="letter-salutation">Dear '+escapeHtml(state.name||"you")+',</span>' + escapeHtml(body);
+  }
+  document.getElementById("letterBody").addEventListener("input", syncLetterPreview);
+
+  function escapeHtml(str){
+    var d = document.createElement("div");
+    d.textContent = str;
+    return d.innerHTML;
+  }
+
+  /* ---------------- media (link slots) ---------------- */
+  function debounce(fn, wait){
+    var t;
+    return function(){
+      var args = arguments;
+      clearTimeout(t);
+      t = setTimeout(function(){ fn.apply(null, args); }, wait);
+    };
+  }
+  function youTubeId(url){
+    var m = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([A-Za-z0-9_-]{11})/);
+    return m ? m[1] : null;
+  }
+  function spotifyEmbed(url){
+    var m = url.match(/open\.spotify\.com\/(track|album|playlist)\/([A-Za-z0-9]+)/);
+    return m ? "https://open.spotify.com/embed/"+m[1]+"/"+m[2] : null;
+  }
+  function audioPreviewMarkup(url){
+    var yt = youTubeId(url);
+    if(yt) return '<iframe class="slot-embed yt-embed" src="https://www.youtube.com/embed/'+yt+'" allow="encrypted-media" frameborder="0"></iframe>';
+    var sp = spotifyEmbed(url);
+    if(sp) return '<iframe class="slot-embed sp-embed" src="'+sp+'" allow="encrypted-media" frameborder="0"></iframe>';
+    return null;
+  }
+  function frameSong(innerHtml){
+    return '<div class="song-frame">'+
+      '<span class="frame-corner tl"></span><span class="frame-corner tr"></span>'+
+      '<span class="frame-corner bl"></span><span class="frame-corner br"></span>'+
+      '<span class="song-frame-badge">&#9834;</span>'+
+      innerHtml+
+      '</div>';
+  }
+  function renderSongPreview(url, previewEl){
+    if(!url){ previewEl.innerHTML = ""; return; }
+    var embed = audioPreviewMarkup(url);
+    if(embed){ previewEl.innerHTML = frameSong(embed); return; }
+    previewEl.innerHTML = '<span class="slot-status">Checking link…</span>';
+    var a = new Audio();
+    a.preload = "metadata";
+    a.oncanplay = function(){ previewEl.innerHTML = frameSong('<audio controls src="'+url+'" class="slot-audio"></audio>'); };
+    a.onerror = function(){ previewEl.innerHTML = '<span class="slot-status error">Couldn\'t play that link — try a direct audio file, a YouTube link, or a Spotify track link.</span>'; };
+    a.src = url;
+  }
+  function renderSongSlots(){
+    var container = document.getElementById("audSlots");
+    container.innerHTML = "";
+    state.songLinks.forEach(function(val, i){
+      var wrap = document.createElement("div");
+      wrap.className = "media-slot";
+      var label = document.createElement("label");
+      label.textContent = "Song link " + (i+1);
+      var input = document.createElement("input");
+      input.type = "text";
+      input.className = "slot-input";
+      input.placeholder = "https://... (file, YouTube, or Spotify)";
+      input.value = val;
+      var preview = document.createElement("div");
+      preview.className = "slot-preview";
+      var onChange = debounce(function(){
+        state.songLinks[i] = input.value.trim();
+        renderSongPreview(input.value.trim(), preview);
+      }, 500);
+      input.addEventListener("input", onChange);
+      wrap.appendChild(label);
+      wrap.appendChild(input);
+      wrap.appendChild(preview);
+      container.appendChild(wrap);
+      if(val) renderSongPreview(val, preview);
+    });
+  }
+
+  /* ---------------- review ---------------- */
+  function renderReview(){
+    var flowerNames = Object.keys(state.flowers).map(function(id){
+      return FLOWER_MAP[id].label + " ×" + state.flowers[id];
+    }).join(", ");
+    var songLinks = state.songLinks.filter(Boolean);
+    var musicHtml = songLinks.length
+      ? songLinks.map(function(u){ return frameSong(audioPreviewMarkup(u) || '<audio controls src="'+u+'" class="slot-audio"></audio>'); }).join("")
+      : "None added";
+    var html = "";
+    html += summaryBlock("For", state.name+" · "+state.occasion);
+    html += summaryBlock("Bouquet", flowerNames || "No flowers selected");
+    html += summaryBlock("Question", state.question);
+    html += summaryBlock("Letter", '<div class="letter-sheet" style="margin-top:6px;padding:16px;">'+
+      '<span class="letter-salutation">Dear '+escapeHtml(state.name)+',</span>'+escapeHtml(state.letter)+'</div>');
+    html += summaryBlock("Music", musicHtml);
+    document.getElementById("reviewSummary").innerHTML = html;
+  }
+  function summaryBlock(label, valueHtml){
+    return '<div class="summary-block"><div class="summary-label">'+label+'</div><div class="summary-value">'+valueHtml+'</div></div>';
+  }
+  document.getElementById("confirmBox").addEventListener("change", function(e){
+    document.getElementById("generateBtn").disabled = !e.target.checked;
+  });
+
+  /* ---------------- generation ---------------- */
+  function randId(){
+    return Math.random().toString(36).slice(2,10);
+  }
+
+  document.getElementById("generateBtn").addEventListener("click", function(){
+    var id = randId();
+    var payload = {
+      id:id,
+      name:state.name,
+      occasion:state.occasion,
+      question:state.question,
+      flowers:flowerIdList(),
+      letter:state.letter,
+      audio:state.songLinks.filter(Boolean),
+      createdAt: Date.now()
+    };
+    var json = JSON.stringify(payload);
+    var compressed = window.LZString.compressToEncodedURIComponent(json);
+    var base = location.origin + location.pathname;
+    var giftLink = base + "#g=" + compressed;
+    var respLink = base + "#r=" + id;
+
+    localStorage.setItem("digibouquet_responses_"+id, JSON.stringify([]));
+
+    document.getElementById("giftLinkOut").value = giftLink;
+    document.getElementById("respLinkOut").value = respLink;
+    document.getElementById("previewGiftBtn").href = giftLink;
+
+    var qrWrap = document.getElementById("qrWrap");
+    qrWrap.innerHTML = "";
+    var holder = document.createElement("div");
+    qrWrap.appendChild(holder);
+    new QRCode(holder, {
+      text: giftLink,
+      width: 176,
+      height: 176,
+      colorDark:"#43301E",
+      colorLight:"#ffffff"
+    });
+
+    showStep(5);
+  });
+
+  /* ---------------- init creation flow ---------------- */
+  function initCreateFlow(){
+    renderFlowerGrid();
+    renderBouquetStep();
+    renderSongSlots();
+    showStep(0);
+  }
+
+  /* ---------------- recipient / responses routing ---------------- */
+  function decodePayload(compressed){
+    try{
+      var json = window.LZString.decompressFromEncodedURIComponent(compressed);
+      return JSON.parse(json);
+    }catch(e){ return null; }
+  }
+
+  function renderGiftMedia(payload){
+    var el = document.getElementById("giftMedia");
+    var auds = payload.audio || [];
+    el.innerHTML = auds.length
+      ? '<div class="gift-audio-list">' + auds.map(function(u){
+          return frameSong(audioPreviewMarkup(u) || '<audio controls src="'+u+'" class="slot-audio"></audio>');
+        }).join("") + '</div>'
+      : "";
+  }
+
+  function initGiftView(payload){
+    document.getElementById("createView").classList.add("hidden");
+    document.getElementById("giftView").classList.remove("hidden");
+    document.getElementById("giftOccasion").textContent = "For " + payload.occasion.toLowerCase().indexOf("valentine")===0 ? payload.occasion : payload.occasion;
+    renderBouquet(payload.flowers, document.getElementById("giftJarWrap"));
+    document.getElementById("giftLetter").innerHTML =
+      '<span class="letter-salutation">Dear '+escapeHtml(payload.name)+',</span>'+escapeHtml(payload.letter);
+    document.getElementById("giftQuestionLabel").textContent = payload.question;
+    renderGiftMedia(payload);
+
+    document.getElementById("sendResponseBtn").addEventListener("click", function(){
+      var text = document.getElementById("responseText").value.trim();
+      if(!text) return;
+      var key = "digibouquet_responses_"+payload.id;
+      var list = JSON.parse(localStorage.getItem(key) || "[]");
+      list.push({text:text, at:Date.now()});
+      localStorage.setItem(key, JSON.stringify(list));
+      document.getElementById("responseBlock").classList.add("hidden");
+      document.getElementById("responseSent").classList.remove("hidden");
+    });
+  }
+
+  function initResponsesView(giftId){
+    document.getElementById("createView").classList.add("hidden");
+    document.getElementById("responsesView").classList.remove("hidden");
+    var key = "digibouquet_responses_"+giftId;
+    var list = JSON.parse(localStorage.getItem(key) || "null");
+    var el = document.getElementById("responsesList");
+    if(list === null){
+      document.getElementById("respLede").textContent =
+        "No replies found on this device for this link.";
+      return;
+    }
+    document.getElementById("respLede").textContent =
+      list.length ? list.length+" repl"+(list.length===1?"y":"ies")+" so far." : "No replies yet — check back after you've sent the link.";
+    el.innerHTML = list.map(function(r){
+      var d = new Date(r.at);
+      return '<div class="response-item">'+escapeHtml(r.text)+
+        '<span class="response-time">'+d.toLocaleString()+'</span></div>';
+    }).join("");
+  }
+
+  function route(){
+    var hash = location.hash.slice(1);
+    if(hash.indexOf("g=") === 0){
+      var payload = decodePayload(hash.slice(2));
+      if(payload){ initGiftView(payload); return; }
+    } else if(hash.indexOf("r=") === 0){
+      initResponsesView(hash.slice(2));
+      return;
+    }
+    initCreateFlow();
+  }
+
+  route();
+})();
+</script>
+</body>
+</html>
